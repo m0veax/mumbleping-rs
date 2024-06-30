@@ -8,7 +8,7 @@ use bincode::{Decode, Encode};
 #[repr(C)]
 pub struct Pong {
     server_version: u32,
-    last_update: u64,
+    ident: u64,
     connected_users: u32,
     max_users: u32,
     bandwidth: u32
@@ -69,11 +69,11 @@ pub fn get_mumble_data(mumble_remote: &str) -> Pong{
     bandwidth: u32
      */
 
-    let (server_version, last_update, connected_users, max_users, bandwidth): (u32, u64, u32, u32, u32) = bincode::decode_from_slice(&buf, bincode::config::standard().with_big_endian()).unwrap().0;
+    let (server_version, ident, connected_users, max_users, bandwidth): (u32, u64, u32, u32, u32) = bincode::decode_from_slice(&buf, bincode::config::standard().with_big_endian()).unwrap().0;
 
     let pong = Pong {
         server_version,
-        last_update,
+        ident,
         connected_users,
         max_users,
         bandwidth
@@ -115,10 +115,10 @@ mod tests {
 
         let pong = Pong {
             server_version: 123,
-            bandwidth: 312,
-            last_update: 456,
+            ident: identifier,
             max_users: 12,
-            connected_users: 2
+            connected_users: 2,
+            bandwidth: 312
         };
 
         let mut slice = [0u8; 24];
