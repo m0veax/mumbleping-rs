@@ -1,0 +1,1 @@
+RiiR 🦀 of [go-mumble-ping](https://github.com/kaibloecker/go-mumble-ping) as a Rust crate
