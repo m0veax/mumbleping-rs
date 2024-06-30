@@ -3,4 +3,5 @@ name = "mubleping-rs"
 version = "0.1.0"
 edition = "2021"
 [dependencies]
-byteorder = "1.5.0"
+serde = { version = "1.0.203", features = ["derive"] }
+bincode = "2.0.0-rc.3"

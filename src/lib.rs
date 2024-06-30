@@ -1,10 +1,13 @@
+use std::io::Read;
 use std::time::{SystemTime, UNIX_EPOCH};
-use byteorder::{ByteOrder, BigEndian};
+use serde::{Deserialize, Serialize};
 use std::net::UdpSocket;
+use bincode::{Decode, Encode};
 
-
-struct Pong {
-    server_version: String,
+#[derive(Debug,Encode,Decode)]
+#[repr(C)]
+pub struct Pong {
+    server_version: u32,
     last_update: u64,
     connected_users: u32,
     max_users: u32,
@@ -12,32 +15,71 @@ struct Pong {
 }
 
 
-pub fn get_mumble_data(mumble_remote: &str) -> i32{
+/*
+Width 	    Data type 	Value 	Comment
+4 bytes 	int 	    0 	    Denotes the request type
+8 bytes 	long long 	ident 	Used to identify the reponse.
+*/
+#[derive(Debug,Encode,Decode)]
+#[repr(C)]
+pub struct Ping {
+    ping: u32,
+    identifier: u64
+}
+
+
+pub fn get_mumble_data(mumble_remote: &str) -> Pong{
 
     // create "client" udp socket on a OS choosen port
     let socket = UdpSocket::bind("127.0.0.1:0").expect("Failed to bind to address");
 
-    //let message = "Hello Server";
-    //socket.send_to(message.as_bytes(), &mumble_remote).expect("couldn't send data");
-
-    let mut buf = [0; 8];
-
-    // send ping over socket to the server
     let identifier: u64 = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs();
-    let mut ping = [0;8];
-    BigEndian::write_u64(&mut buf, identifier);
 
-    socket.send_to(&buf, &mumble_remote).expect("couldn't send data");
+    let ping = Ping {
+        ping: 0,
+        identifier
+    };
 
-    let result = 4;
+    println!("send {:?}", ping);
 
+    let mut slice = [0u8; 12];
 
-    return result;
-}
+    // struct to binary :)
+    let length = bincode::encode_into_slice(
+        ping,
+        &mut slice,
+        bincode::config::standard()
+    ).unwrap();
 
+    let slice = &slice[..length];
 
-pub fn add(left: usize, right: usize) -> usize {
-    left + right
+    // time to send ping
+    socket.send_to(&slice, &mumble_remote).expect("couldn't send data");
+
+    // receive pong
+    //get request from socket
+    let mut buf = [0; 24];
+    socket.recv_from(&mut buf).expect("Failed to receive data");
+
+    /*
+        server_version: u32,
+    last_update: u64,
+    connected_users: u32,
+    max_users: u32,
+    bandwidth: u32
+     */
+
+    let (server_version, last_update, connected_users, max_users, bandwidth): (u32, u64, u32, u32, u32) = bincode::decode_from_slice(&buf, bincode::config::standard().with_big_endian()).unwrap().0;
+
+    let pong = Pong {
+        server_version,
+        last_update,
+        connected_users,
+        max_users,
+        bandwidth
+    };
+
+    return pong;
 }
 
 #[cfg(test)]
@@ -54,13 +96,44 @@ mod tests {
         let result = get_mumble_data(mumble_remote);
 
         //get request from socket
-        let mut buf = [0; 1024];
+        let mut buf = [0; 12];
         let (size, source) = socket.recv_from(&mut buf).expect("Failed to receive data");
-        let request = String::from_utf8_lossy(&buf[..size]);
-        println!("Received request: {:?} from {:?}", request, source);
 
+        let (ping, identifier): (u32, u64) = bincode::decode_from_slice(&buf, bincode::config::standard().with_big_endian()).unwrap().0;
 
+        println!("received {:?}", identifier);
 
-        assert_eq!(result, 4);
+        /*
+        The response will then contain the following data:
+        Width 	    Data type 	Value 	Comment
+        4 bytes 	int 	Version 	e.g., \x0\x1\x2\x3 for 1.2.3. Can be interpreted as one single int or four signed chars.
+        8 bytes 	long long 	ident 	the ident value sent with the request
+        4 bytes 	int 	Currently connected users count
+        4 bytes 	int 	Maximum users (slot count)
+        4 bytes 	int 	Allowed bandwidth
+         */
+
+        let pong = Pong {
+            server_version: 123,
+            bandwidth: 312,
+            last_update: 456,
+            max_users: 12,
+            connected_users: 2
+        };
+
+        let mut slice = [0u8; 24];
+
+        let length = bincode::encode_into_slice(
+            &pong,
+            &mut slice,
+            bincode::config::standard().with_big_endian()
+        ).unwrap();
+
+        let slice = &slice[..length];
+
+        // send Pong
+        socket.send_to(&slice, &mumble_remote).expect("couldn't send data");
+
+        assert_eq!(&result.max_users, &pong.max_users);
     }
 }
