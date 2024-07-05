@@ -3,6 +3,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use serde::{Deserialize, Serialize};
 use std::net::UdpSocket;
 use bincode::{Decode, Encode};
+use std::thread;
 
 #[derive(Debug,Encode,Decode)]
 #[repr(C)]
@@ -39,8 +40,6 @@ pub fn get_mumble_data(mumble_remote: &str) -> Pong{
         ping: 0,
         identifier
     };
-
-    println!("send {:?}", ping);
 
     let mut slice = [0u8; 12];
 
@@ -86,22 +85,15 @@ pub fn get_mumble_data(mumble_remote: &str) -> Pong{
 mod tests {
     use super::*;
 
-    #[test]
-    fn it_works() {
-        // create "server" port for test
+    fn test_server() {
+
         let socket = UdpSocket::bind("127.0.0.1:64738").expect("Failed to bind to address");
-
-        let mumble_remote = "127.0.0.1:64738";
-
-        let result = get_mumble_data(mumble_remote);
 
         //get request from socket
         let mut buf = [0; 12];
         let (size, source) = socket.recv_from(&mut buf).expect("Failed to receive data");
 
         let (ping, identifier): (u32, u64) = bincode::decode_from_slice(&buf, bincode::config::standard().with_big_endian()).unwrap().0;
-
-        println!("received {:?}", identifier);
 
         /*
         The response will then contain the following data:
@@ -132,8 +124,22 @@ mod tests {
         let slice = &slice[..length];
 
         // send Pong
-        socket.send_to(&slice, &mumble_remote).expect("couldn't send data");
+        socket.send_to(&slice, source).expect("couldn't send data");
+    }
 
-        assert_eq!(&result.max_users, &pong.max_users);
+    #[test]
+    fn it_works() {
+        let mumble_remote = "127.0.0.1:64738";
+
+        // create "server" port for test
+        thread::spawn(|| {
+            test_server();
+        });
+
+        let result = get_mumble_data(mumble_remote);
+
+        let max_users: u32 = 12;
+
+        assert_eq!(&result.max_users, &max_users);
     }
 }
