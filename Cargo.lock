@@ -22,7 +22,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "mubleping-rs"
+name = "mumbleping-rs"
 version = "0.1.0"
 dependencies = [
  "bincode",
