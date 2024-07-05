@@ -2,6 +2,12 @@
 name = "mubleping-rs"
 version = "0.1.0"
 edition = "2021"
+license = "MIT"
+authors = ["Patrick Kilter <patrick.kilter@gmail.com>"]
+description = "Library to ping a mumbleserver and get some basic informations about its status"
+readme = "README.md"
+repository = "https://github.com/m0veax/mumbleping-rs"
+
 [dependencies]
 serde = { version = "1.0.203", features = ["derive"] }
 bincode = "2.0.0-rc.3"
