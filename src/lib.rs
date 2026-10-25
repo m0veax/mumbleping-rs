@@ -47,7 +47,7 @@ pub fn get_mumble_data(mumble_remote: &str) -> Pong {
 
     // time to send ping
     socket
-        .send_to(&slice, &mumble_remote)
+        .send_to(slice, mumble_remote)
         .expect("couldn't send data");
 
     // receive pong
@@ -68,15 +68,13 @@ pub fn get_mumble_data(mumble_remote: &str) -> Pong {
             .unwrap()
             .0;
 
-    let pong = Pong {
+    Pong {
         server_version,
         ident,
         connected_users,
         max_users,
         bandwidth,
-    };
-
-    return pong;
+    }
 }
 
 #[cfg(test)]
@@ -88,9 +86,9 @@ mod tests {
 
         //get request from socket
         let mut buf = [0; 12];
-        let (size, source) = socket.recv_from(&mut buf).expect("Failed to receive data");
+        let (_size, source) = socket.recv_from(&mut buf).expect("Failed to receive data");
 
-        let (ping, identifier): (u32, u64) =
+        let (_ping, identifier): (u32, u64) =
             bincode::decode_from_slice(&buf, bincode::config::standard().with_big_endian())
                 .unwrap()
                 .0;
@@ -125,7 +123,7 @@ mod tests {
         let slice = &slice[..length];
 
         // send Pong
-        socket.send_to(&slice, source).expect("couldn't send data");
+        socket.send_to(slice, source).expect("couldn't send data");
     }
 
     #[test]
@@ -133,7 +131,7 @@ mod tests {
         let mumble_remote = "127.0.0.1:64738";
 
         // create "server" port for test
-        thread::spawn(|| {
+        std::thread::spawn(|| {
             test_server();
         });
 
