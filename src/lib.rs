@@ -1,4 +1,4 @@
-use std::net::UdpSocket;
+use std::net::{Ipv4Addr, UdpSocket};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use bincode::{Decode, Encode};
@@ -48,6 +48,8 @@ pub struct Response {
 
 #[derive(Debug, Error)]
 pub enum MumbleError {
+    #[error("could not bind to socket: {0}")]
+    Socket(std::io::Error),
     #[error("could not receive data: {0}")]
     Receive(std::io::Error),
     #[error("could not send data: {0}")]
@@ -66,8 +68,8 @@ const ENCODING_CFG: bincode::config::Configuration<
     .with_fixed_int_encoding();
 
 pub fn get_mumble_data(mumble_remote: &str) -> Result<Response, MumbleError> {
-    // create "client" udp socket on a OS choosen port
-    let socket = UdpSocket::bind("0.0.0.0:0").expect("Failed to bind to address");
+    // client UDP socket with access to any interface/address and OS defined port
+    let socket = UdpSocket::bind((Ipv4Addr::UNSPECIFIED, 0)).map_err(MumbleError::Socket)?;
 
     let now: u64 = SystemTime::now()
         .duration_since(UNIX_EPOCH)
