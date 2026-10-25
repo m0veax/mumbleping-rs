@@ -1,56 +1,54 @@
-use std::time::{SystemTime, UNIX_EPOCH};
-use std::net::UdpSocket;
 use bincode::{Decode, Encode};
+use std::net::UdpSocket;
+use std::time::{SystemTime, UNIX_EPOCH};
 
-#[derive(Debug,Encode,Decode)]
+#[derive(Debug, Encode, Decode)]
 #[repr(C)]
 pub struct Pong {
     server_version: u32,
     ident: u64,
     connected_users: u32,
     max_users: u32,
-    bandwidth: u32
+    bandwidth: u32,
 }
-
 
 /*
 Width 	    Data type 	Value 	Comment
 4 bytes 	int 	    0 	    Denotes the request type
 8 bytes 	long long 	ident 	Used to identify the reponse.
 */
-#[derive(Debug,Encode,Decode)]
+#[derive(Debug, Encode, Decode)]
 #[repr(C)]
 pub struct Ping {
     ping: u32,
-    identifier: u64
+    identifier: u64,
 }
 
-
-pub fn get_mumble_data(mumble_remote: &str) -> Pong{
-
+pub fn get_mumble_data(mumble_remote: &str) -> Pong {
     // create "client" udp socket on a OS choosen port
     let socket = UdpSocket::bind("127.0.0.1:0").expect("Failed to bind to address");
 
-    let identifier: u64 = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs();
+    let identifier: u64 = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_secs();
 
     let ping = Ping {
         ping: 0,
-        identifier
+        identifier,
     };
 
     let mut slice = [0u8; 12];
 
     // struct to binary :)
-    let length = bincode::encode_into_slice(
-        ping,
-        &mut slice,
-        bincode::config::standard()
-    ).unwrap();
+    let length = bincode::encode_into_slice(ping, &mut slice, bincode::config::standard()).unwrap();
 
     let slice = &slice[..length];
 
     // time to send ping
-    socket.send_to(&slice, &mumble_remote).expect("couldn't send data");
+    socket
+        .send_to(&slice, &mumble_remote)
+        .expect("couldn't send data");
 
     // receive pong
     //get request from socket
@@ -65,14 +63,17 @@ pub fn get_mumble_data(mumble_remote: &str) -> Pong{
     bandwidth: u32
      */
 
-    let (server_version, ident, connected_users, max_users, bandwidth): (u32, u64, u32, u32, u32) = bincode::decode_from_slice(&buf, bincode::config::standard().with_big_endian()).unwrap().0;
+    let (server_version, ident, connected_users, max_users, bandwidth): (u32, u64, u32, u32, u32) =
+        bincode::decode_from_slice(&buf, bincode::config::standard().with_big_endian())
+            .unwrap()
+            .0;
 
     let pong = Pong {
         server_version,
         ident,
         connected_users,
         max_users,
-        bandwidth
+        bandwidth,
     };
 
     return pong;
@@ -83,14 +84,16 @@ mod tests {
     use super::*;
 
     fn test_server() {
-
         let socket = UdpSocket::bind("127.0.0.1:64738").expect("Failed to bind to address");
 
         //get request from socket
         let mut buf = [0; 12];
         let (size, source) = socket.recv_from(&mut buf).expect("Failed to receive data");
 
-        let (ping, identifier): (u32, u64) = bincode::decode_from_slice(&buf, bincode::config::standard().with_big_endian()).unwrap().0;
+        let (ping, identifier): (u32, u64) =
+            bincode::decode_from_slice(&buf, bincode::config::standard().with_big_endian())
+                .unwrap()
+                .0;
 
         /*
         The response will then contain the following data:
@@ -107,7 +110,7 @@ mod tests {
             ident: identifier,
             max_users: 12,
             connected_users: 2,
-            bandwidth: 312
+            bandwidth: 312,
         };
 
         let mut slice = [0u8; 24];
@@ -115,8 +118,9 @@ mod tests {
         let length = bincode::encode_into_slice(
             &pong,
             &mut slice,
-            bincode::config::standard().with_big_endian()
-        ).unwrap();
+            bincode::config::standard().with_big_endian(),
+        )
+        .unwrap();
 
         let slice = &slice[..length];
 
