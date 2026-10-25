@@ -9,5 +9,6 @@ readme = "README.md"
 repository = "https://github.com/m0veax/mumbleping-rs"
 
 [dependencies]
+bincode = "2.0.1"
 serde = { version = "1.0.203", features = ["derive"] }
-bincode = "2.0.0-rc.3"
+thiserror = "2.0.21"
