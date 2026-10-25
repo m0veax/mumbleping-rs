@@ -2,6 +2,7 @@ use std::net::UdpSocket;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use bincode::{Decode, Encode};
+use serde::Serialize;
 use thiserror::Error;
 
 /*
@@ -29,9 +30,20 @@ Width 	    Data type 	Value 	Comment
 */
 #[derive(Debug, Encode, Decode)]
 #[repr(C)]
-pub struct Ping {
+struct Ping {
     ping: u32,
     identifier: u64,
+}
+
+#[derive(Debug, Clone, Copy, Encode, Decode, Serialize)]
+#[repr(C)]
+pub struct Response {
+    pub server_version: u32,
+    pub ident: u64,
+    pub connected_users: u32,
+    pub max_users: u32,
+    pub bandwidth: u32,
+    pub last_update: u64,
 }
 
 #[derive(Debug, Error)]
@@ -53,18 +65,18 @@ const ENCODING_CFG: bincode::config::Configuration<
     .with_big_endian()
     .with_fixed_int_encoding();
 
-pub fn get_mumble_data(mumble_remote: &str) -> Result<Pong, MumbleError> {
+pub fn get_mumble_data(mumble_remote: &str) -> Result<Response, MumbleError> {
     // create "client" udp socket on a OS choosen port
     let socket = UdpSocket::bind("0.0.0.0:0").expect("Failed to bind to address");
 
-    let identifier: u64 = SystemTime::now()
+    let now: u64 = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap()
         .as_secs();
 
     let ping = Ping {
         ping: 0,
-        identifier,
+        identifier: now,
     };
 
     let mut slice = [0u8; 12];
@@ -89,12 +101,13 @@ pub fn get_mumble_data(mumble_remote: &str) -> Result<Pong, MumbleError> {
             .map_err(MumbleError::Decode)?
             .0;
 
-    Ok(Pong {
+    Ok(Response {
         server_version,
         ident,
         connected_users,
         max_users,
         bandwidth,
+        last_update: now,
     })
 }
 
@@ -122,7 +135,7 @@ mod tests {
 
         let mut slice = [0u8; 24];
 
-        let length = bincode::encode_into_slice(&pong, &mut slice, ENCODING_CFG).unwrap();
+        let length = bincode::encode_into_slice(pong, &mut slice, ENCODING_CFG).unwrap();
 
         let slice = &slice[..length];
 
