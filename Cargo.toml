@@ -12,3 +12,4 @@ repository = "https://github.com/m0veax/mumbleping-rs"
 bincode = "2.0.1"
 serde = { version = "1.0.203", features = ["derive"] }
 thiserror = "2.0.21"
+tracing = "0.1.44"

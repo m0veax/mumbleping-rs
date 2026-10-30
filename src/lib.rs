@@ -68,8 +68,10 @@ const ENCODING_CFG: bincode::config::Configuration<
     .with_fixed_int_encoding();
 
 pub fn get_mumble_data(mumble_remote: &str) -> Result<Response, MumbleError> {
+    tracing::debug!("creating socket");
     // client UDP socket with access to any interface/address and OS defined port
     let socket = UdpSocket::bind((Ipv4Addr::UNSPECIFIED, 0)).map_err(MumbleError::Socket)?;
+    tracing::debug!("socket created");
 
     let now: u64 = SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -88,6 +90,7 @@ pub fn get_mumble_data(mumble_remote: &str) -> Result<Response, MumbleError> {
         bincode::encode_into_slice(ping, &mut slice, ENCODING_CFG).map_err(MumbleError::Encode)?;
     let slice = &slice[..length];
 
+    tracing::debug!("sending ping");
     // time to send ping
     socket
         .send_to(slice, mumble_remote)
@@ -96,6 +99,7 @@ pub fn get_mumble_data(mumble_remote: &str) -> Result<Response, MumbleError> {
     // receive pong
     //get request from socket
     let mut buf = [0; 24];
+    tracing::debug!("receiving data");
     socket.recv_from(&mut buf).map_err(MumbleError::Receive)?;
 
     let (server_version, ident, connected_users, max_users, bandwidth): (u32, u64, u32, u32, u32) =
@@ -103,6 +107,7 @@ pub fn get_mumble_data(mumble_remote: &str) -> Result<Response, MumbleError> {
             .map_err(MumbleError::Decode)?
             .0;
 
+    tracing::debug!("data received");
     Ok(Response {
         server_version,
         ident,
